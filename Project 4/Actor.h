@@ -13,21 +13,21 @@ class Actor : public GraphObject
 public:
 	Actor(StudentWorld* w, int imageID, int startX, int startY, Direction startDirection, double size, unsigned int depth);
 	virtual ~Actor();
-	virtual bool isPresent(int x, int y) const;
 	virtual void doSomething();
-	virtual void annoy();
+	virtual void annoy(int i);
 	virtual bool isAlive() const;
 	virtual bool isDistributedObject() const;
 	virtual void setToDead();
-	virtual bool isAnObstacle() const;
+	virtual bool isObstacle() const; // is a collision object
 	virtual bool isPickupable() const;
-	double getRadius(int x1, int y1, int x2, int y2);
+	virtual bool isProtester() const;
+	virtual void bribe();
+	double getRadius(int x1, int y1, int x2, int y2) const;
 	StudentWorld* getWorld() const;
-	//StudentWorld*& getWorldReference();
-
 private:
 	bool m_alive;
 	StudentWorld* myWorld;
+
 };
 // Earth declaration:
 class Earth : public Actor
@@ -37,7 +37,6 @@ public:
 	virtual ~Earth();
 	virtual void doSomething();
 private:
-
 };
 class Object : public Actor
 {
@@ -46,25 +45,27 @@ public:
 	virtual void doSomething();
 	virtual ~Object();
 	virtual bool isDistributedObject() const;
-	virtual bool isAnObstacle() const;
+	virtual bool isObstacle() const;
 	virtual bool isPickupable() const;
-	virtual bool isAlive() const;
 	virtual void setToDead();
+	//StudentWorld* getWorld() const;
+private:
+	//StudentWorld * myWorld;
 };
 class Human : public Actor
 {
 public:
 	Human(StudentWorld* w, int imageID, int startX, int startY, Direction startDirection, double size, unsigned int depth);
 	virtual ~Human();
-	virtual bool isPresent(int x, int y) const;
 	virtual void doSomething();
-	virtual void annoy();
-	virtual void increaseHitPoints(int i);
-	virtual void decreaseHitPoints(int i);
-	virtual int getHP() const;
+	virtual void annoy(int i);
+	// Health:
+	void increaseHitPoints(int i);
+	void decreaseHitPoints(int i);
+	int getHP() const;
+	void setHitPoints(int i);
 private:
 	int m_hitPoints;
-
 };
 
 // Tunnelman declaration
@@ -73,18 +74,18 @@ class Tunnelman : public Human
 public:
 	Tunnelman(StudentWorld* w);
 	virtual ~Tunnelman();
-	virtual void annoy();
+	virtual void annoy(int i);
 	virtual void doSomething();
-	void nuggetReceived(); // increase by 1
-	void dropNugget(); // decrease by 1
-	int getSquirts() const;
-	void increaseSquirts(int i);
-	void decreaseSquirts(int i);
-	void increaseSonarCount();
-	void decreaseSonarCount();
+	void dig(); // dig
+	void nuggetReceived(); // increase nugget count by 1
+	void dropNugget(); // decrease nugget count by 1
+	int getSquirts() const; // get squirts remaining
+	void increaseSquirts(int i); // increase squirt count by 1
+	void decreaseSquirts(int i); // decrease squirt count by 1
+	void increaseSonarCount(int i); // increase sonar count by 1
+	void decreaseSonarCount(); //decrease sonar count by 1
 	int getNuggetCount() const;
 	int getSonarCharges() const;
-	void dig();
 private:
 	// squirt gun, sonar, gold nuggets, hit-points
 	int m_squirts;
@@ -97,16 +98,16 @@ class Boulder : public Object
 {
 public:
 	Boulder(StudentWorld* w, int x, int y);
-	virtual bool isAnObstacle() const;
+	virtual ~Boulder();
+	virtual bool isObstacle() const;
 	virtual void doSomething();
-	virtual bool isDistributedObject() const;
-	virtual bool isPresent(int x, int y) const;
 	virtual bool isPickupable() const;
 	virtual void setToDead();
 private:
 	bool b_stable;
 	bool b_waiting;
 	bool b_falling;
+	bool b_ticks;
 };
 // Squirt declaration
 class Squirt : public Object
@@ -117,10 +118,12 @@ public:
 	virtual void doSomething();
 	virtual bool isPickupable() const;
 	virtual bool isDistributedObject() const;
-	virtual bool isAnObstacle() const;
+	virtual void setToDead();
 	// Squirts can't be annoyed
 private:
 	int distance;
+	bool m_killProtester;
+	bool m_boulder;
 };
 // Barrel of Oil:
 class Barrel : public Object
@@ -129,9 +132,6 @@ public:
 	Barrel(StudentWorld* w, int x, int y);
 	virtual ~Barrel();
 	virtual void doSomething();
-	virtual bool isDistributedObject() const;
-	virtual bool isPickupable() const;
-	virtual bool isAnObstacle() const;
 	// Barrels can't be annoyed, no need to rewrite
 private:
 	bool visible;
@@ -142,9 +142,7 @@ class WaterPool : public Object
 public:
 	WaterPool(StudentWorld* w, int x, int y);
 	virtual void doSomething();
-	virtual bool isDistributedObject() const;
-	virtual bool isPickupable() const;
-	virtual bool isAnObstacle() const;
+	virtual ~WaterPool();
 	// Waterpool can't be annoyed
 };
 // Gold Nugget:
@@ -152,12 +150,11 @@ class GoldNugget : public Object
 {
 public:
 	GoldNugget(StudentWorld* w, int x, int y, bool visibilityState, bool curState, bool pickUpable);
-	virtual bool isPickupable() const;
 	virtual void doSomething();
-	virtual bool isDistributedObject() const;
-	virtual bool pickupableByTunnelman() const;
-	virtual bool isAnObstacle() const;
+	bool pickupableByTunnelman() const;
 	virtual void setToDead();
+	virtual ~GoldNugget();
+
 private:
 	bool g_permanentState; // true means permanent, false means temporary
 	bool g_tunnelmanCanPickItUp; // true means tunnelman can pick it up, false means protester can pick it up
@@ -170,18 +167,59 @@ class SonarKit : public Object
 {
 public:
 	SonarKit(StudentWorld* w, int x, int y);
-	//~SonarKit();
-	virtual bool isPickupable() const;
-	virtual bool isDistributedObject() const;
+	virtual ~SonarKit();
 	virtual void doSomething();
-	virtual bool isAnObstacle() const;
 private:
 	bool tempState;
 };
+// Protester:
+class Protester : public Human
+{
+public:
+	Protester(StudentWorld* w, int imageID);
+	virtual ~Protester();
+	virtual void doSomething();
+	virtual void annoy(int i);
+	virtual void computeNumStepsToMove();
+	virtual int getNumStepsToMove() const;
+	virtual void bribe();
+	virtual bool isProtester() const;
+	virtual void moveThisManySquares(int n);
+	void unstun();
+	void stun();
 
+	//
+	int getRestTick();
+	int getShoutTick();
+	int getTurnTick();
+	void setRestTick(int num);
+	void setShoutTick(int num);
+	void setTurnTick(int num);
+	virtual bool isHardcore() const;
+	bool isLeavingField() const;
+	void setToLeaving();
+	GraphObject::Direction randomDirection();
+	GraphObject::Direction canTurnPerpendicular();
+private:
+	bool m_leaving;
+	bool m_resting;
+	int m_numSquaresToMove;
+	bool m_stunned;
+	int m_restTicks;
+	int m_shoutTicks; // the number of ticks since the protester last shouted.
+	int m_perpTurnTicks;
+};
+class RegularProtester : public Protester
+{
+public:
+	RegularProtester(StudentWorld* w, int imageID);
+private:
+};
+class HardcoreProtester : public Protester
+{
+public:
+	HardcoreProtester(StudentWorld* w, int imageID);
+	virtual void annoy(int i);
+	virtual void bribe();
+};
 #endif 
-
-/*
-increment the tick count when doSomething() is executed, (something like a private member variable)
-same situation when move() is called.
-*/
