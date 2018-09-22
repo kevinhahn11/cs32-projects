@@ -127,4 +127,4 @@ private:
 
 };
 
-#endif // STUDENTWORLD_H_
+#endif // STUDENTWORLD_H
