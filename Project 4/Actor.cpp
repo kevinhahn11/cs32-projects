@@ -28,25 +28,29 @@ Actor::Actor(StudentWorld* w, int imageID, int startX, int startY,
 Actor::~Actor()
 {
 	//if (getWorld()->getLives() <= 0 && myWorld != nullptr)
-	
+	/*
 	if (getWorld()->getLives() <= 0 && myWorld != nullptr)
 	{
-		delete myWorld;
-		myWorld = nullptr;
+	delete myWorld;
+	myWorld = nullptr;
 	}
-	
+	*/
 }
+void Actor::setToDead() {
+	m_alive = false;
+	setVisible(false);
+} // sets tunnelman to dead
+bool Actor::isProtester() const { return false; }
 bool Actor::isDistributedObject() const { return false; }
-void Actor::setToDead() { m_alive = false; }
 StudentWorld* Actor::getWorld() const { return myWorld; }
-bool Actor::isAnObstacle() const { return false; }
+
+bool Actor::isObstacle() const { return false; }
 bool Actor::isPickupable() const { return false; }
 void Actor::doSomething() {}
-void Actor::annoy() {}
-double Actor::getRadius(int x1, int y1, int x2, int y2) { return sqrt((pow(x1 - x2, 2) + pow(y1 - y2, 2))); }
-
+void Actor::annoy(int i) {}
+double Actor::getRadius(int x1, int y1, int x2, int y2) const { return sqrt((pow(x1 - x2, 2) + pow(y1 - y2, 2))); }
+void Actor::bribe() {}
 bool Actor::isAlive() const { return m_alive; }
-bool Actor::isPresent(int x, int y) const { return (getX() == x && getY() == y); }
 /*
 StudentWorld*& Actor::getWorldReference() { return myWorld; }
 */
@@ -68,12 +72,12 @@ Human::Human(StudentWorld* w, int imageID, int startX, int startY,
 	// humans are always visible, actor's constructor takes care of it for us
 }
 Human::~Human() {}
-bool Human::isPresent(int x, int y) const { return true; }
 void Human::doSomething() {}
-void Human::annoy() {}
+void Human::annoy(int i) {}
 void Human::increaseHitPoints(int i) { m_hitPoints += i; }
 void Human::decreaseHitPoints(int i) { m_hitPoints -= i; }
 int Human::getHP() const { return m_hitPoints; }
+void Human::setHitPoints(int i) { m_hitPoints = i; }
 ///////////////////////////////////////////////////
 // Tunnelman implementations
 Tunnelman::Tunnelman(StudentWorld* w)
@@ -85,15 +89,15 @@ Tunnelman::~Tunnelman() {
 int Tunnelman::getSquirts() const { return m_squirts; }
 void Tunnelman::increaseSquirts(int i) { m_squirts += i; }
 void Tunnelman::decreaseSquirts(int i) { m_squirts -= i; }
-void Tunnelman::increaseSonarCount() { m_sonar++; }
+void Tunnelman::increaseSonarCount(int i) { m_sonar++; }
 void Tunnelman::decreaseSonarCount() { m_sonar--; }
 void Tunnelman::dropNugget() { m_nuggets--; }
 void Tunnelman::nuggetReceived() { m_nuggets++; }
 int Tunnelman::getNuggetCount() const { return m_nuggets; }
 int Tunnelman::getSonarCharges() const { return m_sonar; }
-void Tunnelman::annoy()
+void Tunnelman::annoy(int i)
 {
-	decreaseHitPoints(2);
+	decreaseHitPoints(i);
 	if (getHP() <= 0)
 	{
 		setToDead();
@@ -123,12 +127,16 @@ void Tunnelman::doSomething()
 				}
 				else
 				{
-					if (getWorld()->isBoulderPresent(getX() + 4, getY()) == true)
+					if (getWorld()->amIDiggingIntoBoulder(getX() + 1, getY()) == true)
+					{
+						dig();
 						break;
+					}
 					else
 					{
 						moveTo(getX() + 1, getY());
 						dig();
+						//getWorld()->playSound(SOUND_DIG);
 					}
 				}
 
@@ -148,12 +156,16 @@ void Tunnelman::doSomething()
 				}
 				else
 				{
-					if (getWorld()->isBoulderPresent(getX() - 4, getY()) == true)
+					if (getWorld()->amIDiggingIntoBoulder(getX() - 1, getY()) == true)
+					{
+						//dig();
 						break;
+					}
 					else
 					{
 						moveTo(getX() - 1, getY());
 						dig();
+						//getWorld()->playSound(SOUND_DIG);
 					}
 				}
 			}
@@ -170,12 +182,16 @@ void Tunnelman::doSomething()
 				}
 				else
 				{
-					if (getWorld()->isBoulderPresent(getX(), getY() - 4) == true)
+					if (getWorld()->amIDiggingIntoBoulder(getX(), getY() - 1) == true)
+					{
+						//dig();
 						break;
+					}
 					else
 					{
 						moveTo(getX(), getY() - 1);
 						dig();
+						//getWorld()->playSound(SOUND_DIG);
 					}
 				}
 			}
@@ -192,12 +208,16 @@ void Tunnelman::doSomething()
 				}
 				else
 				{
-					if (getWorld()->isBoulderPresent(getX(), getY() + 4) == true)
+					if (getWorld()->amIDiggingIntoBoulder(getX(), getY() + 1) == true)
+					{
+						//dig();
 						break;
+					}
 					else
 					{
 						moveTo(getX(), getY() + 1);
 						dig();
+						//getWorld()->playSound(SOUND_DIG);
 					}
 				}
 			}
@@ -208,22 +228,50 @@ void Tunnelman::doSomething()
 				break;
 			switch (getDirection()) {
 			case right:
-				getWorld()->addActor(new Squirt(getWorld(), getX() + 4, getY(), this));
+				if (getWorld()->amIDiggingIntoBoulder(getX() + 4, getY()) == true)
+				{
+					getWorld()->playSound(SOUND_PLAYER_SQUIRT);
+					m_squirts--;
+					return;
+				}
+				if (getWorld()->isThereEarthFourByFour(getX() + 4, getX() + 7, getY(), getY() + 3) == false)
+					getWorld()->addActor(new Squirt(getWorld(), getX() + 4, getY(), this));
 				getWorld()->playSound(SOUND_PLAYER_SQUIRT);
 				m_squirts--;
 				break;
 			case left:
-				getWorld()->addActor(new Squirt(getWorld(), getX() - 4, getY(), this));
+				if (getWorld()->amIDiggingIntoBoulder(getX() - 4, getY()) == true)
+				{
+					getWorld()->playSound(SOUND_PLAYER_SQUIRT);
+					m_squirts--;
+					return;
+				}
+				if (getWorld()->isThereEarthFourByFour(getX() - 4, getX(), getY(), getY() + 3) == false)
+					getWorld()->addActor(new Squirt(getWorld(), getX() - 4, getY(), this));
 				getWorld()->playSound(SOUND_PLAYER_SQUIRT);
 				m_squirts--;
 				break;
 			case up:
-				getWorld()->addActor(new Squirt(getWorld(), getX(), getY() + 4, this));
+				if (getWorld()->amIDiggingIntoBoulder(getX(), getY() + 4) == true)
+				{
+					getWorld()->playSound(SOUND_PLAYER_SQUIRT);
+					m_squirts--;
+					return;
+				}
+				if (getWorld()->isThereEarthFourByFour(getX(), getX() + 3, getY(), getY() + 7) == false)
+					getWorld()->addActor(new Squirt(getWorld(), getX(), getY() + 4, this));
 				getWorld()->playSound(SOUND_PLAYER_SQUIRT);
 				m_squirts--;
 				break;
 			case down:
-				getWorld()->addActor(new Squirt(getWorld(), getX(), getY() - 4, this));
+				if (getWorld()->amIDiggingIntoBoulder(getX(), getY() - 4) == true)
+				{
+					getWorld()->playSound(SOUND_PLAYER_SQUIRT);
+					m_squirts--;
+					return;
+				}
+				if (getWorld()->isThereEarthFourByFour(getX(), getX() + 3, getY() - 4, getY()) == false)
+					getWorld()->addActor(new Squirt(getWorld(), getX(), getY() - 4, this));
 				getWorld()->playSound(SOUND_PLAYER_SQUIRT);
 				m_squirts--;
 				break;
@@ -234,6 +282,7 @@ void Tunnelman::doSomething()
 		case KEY_PRESS_ESCAPE:
 			this->setToDead();
 			getWorld()->playSound(SOUND_PLAYER_GIVE_UP);
+			getWorld()->decLives();
 			break;
 		case KEY_PRESS_TAB:
 			if (m_nuggets <= 0)
@@ -258,11 +307,287 @@ void Tunnelman::doSomething()
 }
 void Tunnelman::dig()
 {
+	if (getWorld()->isThereEarthFourByFour(getX(), getX() + 3, getY(), getY() + 3))
+		getWorld()->playSound(SOUND_DIG);
 	for (int col = 0; col <= 3; col++)
 		for (int row = 0; row <= 3; row++)
 			getWorld()->removeEarth((getX() + col), (getY() + row));
+	return;
+}
+/////////////////////////////////////////////////////////////////////////////////////////
+// Protester
+Protester::Protester(StudentWorld* w, int imageID)
+	:Human(w, imageID, 60, 60, left, 1.0, 0), m_numSquaresToMove(-1), m_restTicks(0), m_shoutTicks(0), m_perpTurnTicks(0),
+	m_leaving(false), m_resting(false), m_stunned(false)
+{
+	setHitPoints(5);
+	setVisible(true);
+}
+Protester::~Protester() {}
+bool Protester::isProtester() const { return true; }
+bool Protester::isHardcore() const { return false; }
+void Protester::doSomething()
+{
+	//m_shoutTicks++;
+	if (isAlive() == false)
+		return;
+	//setDirection(randomDirection());
+}
+/*
+if (m_restTicks > max(0, 3 - (int)(getWorld()->getLevel() / 4)))
+{
+m_resting = false;
+setRestTick(0);
+}
+if (m_resting == true)
+{
+m_restTicks++;
+return;
+}
+else if (getRadius(getX(), getY(), getWorld()->getTunnelman()->getX(), getWorld()->getTunnelman()->getY()) <= 4 &&
+getWorld()->isFacingTunnelman(this) && m_shoutTicks > 15)
+{
+getWorld()->getTunnelman()->annoy(2);
+}
+if (getX() == 60 && getY() == 60)
+{
+if (m_leaving = true)
+{
+setToDead();
+return;
+}
+else
+{
+moveTo(getX() - 1, getY());
+setRestTick(0);
+return;
+}
+}
+if (m_resting = false && getX() == 30 && getY() == 5)
+{
+m_leaving = true;
+setDirection(up);
+moveTo(getX(), getY() + 1);
+setRestTick(0);
+}
+if (getX() == 30 && getY() == 60)
+{
+if (m_leaving == true)
+{
+setDirection(right);
+moveTo(getX() + 1, getY());
+setRestTick(0);
+}
+else
+{
+setDirection(down);
+moveTo(getX(), getY() - 1);
+setRestTick(0);
+}
+}
+else
+{
+switch (getDirection())
+{
+case up:
+moveTo(getX(), getY() + 1);
+setRestTick(0);
+return;
+break;
+case down:
+moveTo(getX(), getY() - 1);
+setRestTick(0);
+return;
+break;
+case left:
+moveTo(getX() - 1, getY());
+return;
+break;
+case right:
+moveTo(getX() + 1, getY());
+return;
+break;
+default:
+return;
+break;
+}
+}
+m_shoutTicks++;
+/*
+if (m_leaving == false)
+{
+if (getRadius(getX(), getY(), getWorld()->getTunnelman()->getX(), getWorld()->getTunnelman()->getY()) <= 4 &&
+getWorld()->isFacingTunnelman(this) && m_shoutTicks > 15)
+{
+getWorld()->playSound(SOUND_PROTESTER_YELL);
+getWorld()->getTunnelman()->annoy(2);
+setShoutTick(0);
+}
+}
+*/
+//}
+/*
+void Protester::doSomething() {
+if (isAlive() == false)
+return;
+else if (m_resting == true)
+{
+m_restTicks++; // increment resting tick count if the protester is resting.
+return;
+}
+else if (m_leaving == true) // if protester is in a leave the oil state
+{
+return;
+}
+else if (getRadius(getX(), getY(), getWorld()->getTunnelman()->getX(), getWorld()->getTunnelman()->getY()) <= 4 &&
+getWorld()->isFacingTunnelman(this))
+{
+if (m_shoutTicks > 15)
+{
+getWorld()->playSound(SOUND_PROTESTER_YELL);
+getWorld()->getTunnelman()->annoy(2);
+setShoutTick(0); // prevent protester from shouting again for at least 15 non-resting ticks
+}
+}
+else if (getWorld()->getLineOfSightToTunnelman(this) != none
+&& getRadius(getX(), getY(), getWorld()->getTunnelman()->getX(), getWorld()->getTunnelman()->getY()) > 4)
+{
+setDirection(getWorld()->getLineOfSightToTunnelman(this));
+}
+else
+return;
+
+}
+*/
+void Protester::bribe()
+{
+	getWorld()->playSound(SOUND_PROTESTER_FOUND_GOLD);
+	getWorld()->increaseScore(25);
+	setToLeaving();
+}
+void Protester::stun() { m_stunned = true; m_resting = true; }
+void Protester::unstun() { m_stunned = false; }
+void Protester::annoy(int i) {
+	this->decreaseHitPoints(i);
+	if (isLeavingField() == true)
+		return; // protester cannot be further annoyed.
+
+	if (getHP() <= 0)
+	{
+		setToLeaving();
+		getWorld()->playSound(SOUND_PROTESTER_GIVE_UP);
+		setToDead();
+		return;
+		setRestTick(0);
+		if (i == 100)
+			getWorld()->increaseScore(500);
+		if (i == 2)
+		{
+			if (isHardcore() == true)
+				getWorld()->increaseScore(250);
+			else
+				getWorld()->increaseScore(100);
+		}
+
+	}
+	else
+	{
+		m_stunned = true;
+		getWorld()->playSound(SOUND_PROTESTER_ANNOYED);
+		m_restTicks = max(50, 100 - ((int)getWorld()->getLevel()) * 10);
+		m_stunned = true;
+	}
 }
 
+void Protester::computeNumStepsToMove()
+{
+	m_numSquaresToMove = rand() % 61 + 8;
+}
+int Protester::getNumStepsToMove() const
+{
+	return m_numSquaresToMove;
+}
+void Protester::moveThisManySquares(int n)
+{
+
+}
+GraphObject::Direction Protester::randomDirection()
+{
+	int direction = rand() % 4;
+	switch (direction)
+	{
+	case 0:
+		return left;
+		break;
+	case 1:
+		return right;
+		break;
+	case 2:
+		return up;
+		break;
+	case 3:
+		return down;
+		break;
+	default:
+		return left;
+	}
+}
+GraphObject::Direction Protester::canTurnPerpendicular()
+{
+	return GraphObject::none;
+}
+int Protester::getRestTick() {
+	return m_restTicks;
+}
+
+int Protester::getShoutTick() {
+	return m_shoutTicks;
+}
+
+int Protester::getTurnTick() {
+	return m_perpTurnTicks;
+}
+
+void Protester::setRestTick(int num) {
+	m_restTicks = num;
+}
+
+void Protester::setShoutTick(int num) {
+	m_shoutTicks = num;
+}
+
+void Protester::setTurnTick(int num) {
+	m_perpTurnTicks = num;
+}
+
+bool Protester::isLeavingField() const {
+	return m_leaving;
+}
+
+void Protester::setToLeaving() {
+	m_leaving = true;
+}
+/////////////////////////////////////////////////////////////////////////////////////////
+// Regular Protester
+RegularProtester::RegularProtester(StudentWorld* w, int imageID)
+	:Protester(w, TID_PROTESTER)
+{}
+/////////////////////////////////////////////////////////////////////////////////////////
+// Hardcore Protester
+HardcoreProtester::HardcoreProtester(StudentWorld* w, int imageID)
+	: Protester(w, TID_HARD_CORE_PROTESTER)
+{
+	setHitPoints(20); //
+}
+void HardcoreProtester::annoy(int i)
+{
+	Protester::annoy(i);
+}
+void HardcoreProtester::bribe()
+{
+	getWorld()->playSound(SOUND_PROTESTER_FOUND_GOLD);
+	getWorld()->increaseScore(50);
+}
 /////////////////////////////////////////////////////////////////////////////////////////
 // Object implementations: base class for anything that is not a Protester or Tunnelman.
 
@@ -278,24 +603,23 @@ void Object::setToDead() {
 	setVisible(false);
 	Actor::setToDead();
 }
-bool Object::isAlive() const { return Actor::isAlive(); }
-bool Object::isAnObstacle() const { return true; }
+bool Object::isObstacle() const { return false; }
 ///////////////////////////////////////////////////////////////////////////////////////
 // Boulder implementations
 Boulder::Boulder(StudentWorld* w, int x, int y)
-	: Object(w, TID_BOULDER, x, y, down, 1.0, 1), b_stable(true), b_waiting(false), b_falling(false)
+	: Object(w, TID_BOULDER, x, y, down, 1.0, 1), b_stable(true), b_waiting(false), b_falling(false), b_ticks(0)
 {
 	//setVisible(true); // already done for us by the actor class
 	for (int col = 0; col <= 3; col++)
 		for (int row = 0; row <= 3; row++)
 			getWorld()->removeEarth((x + col), (y + row));
 }
-bool Boulder::isDistributedObject() const { return true; }
+Boulder::~Boulder() {}
 bool Boulder::isPickupable() const { return false; }
-bool Boulder::isPresent(int x, int y) const { return true; }
-bool Boulder::isAnObstacle() const { return true; }
+bool Boulder::isObstacle() const { return true; }
 void Boulder::setToDead()
 {
+	getWorld()->resetBoulderTicks();
 	setVisible(false);
 	Actor::setToDead();
 }
@@ -310,9 +634,9 @@ void Boulder::doSomething()
 				return;
 		b_waiting = true;
 		b_stable = false;
-		getWorld()->resetTickCount();
+		getWorld()->resetBoulderTicks();
 	}
-	else if (getWorld()->getTicks() > 30 && b_waiting == true)
+	else if (getWorld()->getBoulderTicks() > 30 && b_waiting == true)
 	{
 		b_waiting = false;
 		b_falling = true;
@@ -320,26 +644,30 @@ void Boulder::doSomething()
 	}
 	else if (b_falling == true)
 	{
-		if (getY() == 0)
+		if (getY() <= 0)
 		{
 			setToDead();
 			return;
 		}
-		else if (getWorld()->isThereEarthFBF(getX(), getX() + 3, getY() - 1, getY() - 1))
+		else if (getWorld()->isThereFourByOneEarth(getX(), getY() - 1))
 		{
 			setToDead();
 			return;
 		}
-		else if (getWorld()->isBoulderPresent(getX(), getY() - 1))
+		else if (getRadius(getX(), getY() - 1, getWorld()->getTunnelman()->getX(), getWorld()->getTunnelman()->getY()) <= 3)
 		{
-			setToDead();
+			getWorld()->getTunnelman()->setToDead(); // kill the player
+			getWorld()->playSound(SOUND_PLAYER_GIVE_UP); // play the player died sound
+			setToDead(); // set this boulder to dead
 			return;
 		}
-		else
+		else if (getWorld()->getNearbyProtester(this, 3) != nullptr)
 		{
-			moveTo(getX(), getY() - 1);
-			return;
+			getWorld()->getNearbyProtester(this, 3)->annoy(100);
 		}
+
+		moveTo(getX(), getY() - 1);
+		return;
 	}
 	else
 		return;
@@ -349,55 +677,113 @@ void Boulder::doSomething()
 // Squirt implementation
 Squirt::Squirt(StudentWorld* w, int x, int y, Tunnelman* t)
 	: Object(w, TID_WATER_SPURT, x, y, t->getDirection(), 1.0, 1),
-	distance(4)
+	distance(0), m_killProtester(false), m_boulder(false)
 {
-	setVisible(true);
+	/*
+	if (getWorld()->isThereEarthFourByFour(x, x + 3, y, y + 3))
+	{
+	setVisible(false);
+	setToDead();
+	}
+	*/
 }
-bool Squirt::isAnObstacle() const { return false; }
+// setToDead() is inherited from actor, and just sets the squirt's visibility to false
 bool Squirt::isDistributedObject() const { return false; }
 bool Squirt::isPickupable() const { return false; }
+void Squirt::setToDead()
+{
+	//setVisible(false);
+	Actor::setToDead();
+}
 Squirt::~Squirt() {}
+
 void Squirt::doSomething()
 {
-	// if squirt is within a radius of 3.0 of one or more protesters:...
+	if (isAlive() == false)
+		return;
+	// TO-DO: if (squirt is within a radius of 3.0 of one or more protesters):
+	// ...
 
-	if (distance == 0)
+	distance++;
+	if (distance >= 4 || m_killProtester == true || m_boulder == true)
 	{
 		this->setToDead();
+		m_killProtester = false;
+		m_boulder = false;
 		return;
 	}
 	switch (getDirection())
 	{
 	case right:
-		if (getX() + 1 <= 64)
+		if (getX() + 1 > 63)
 		{
-			// if target location is occupied by a earth or boulder
-			// ...
-			// otherwise
-			if (getWorld()->isEarthPresent(getX() + 1, getY()))
+			setToDead();
+			return;
+		}
+		else
+		{
+
+			if (getWorld()->isThereOneByFourEarth(getX() + 4, getY()))
+			{
+				setVisible(false);
 				setToDead();
-			distance--;
+				return;
+			}
+
+			if (getWorld()->isThereOneByFourEarth(getX() + 1, getY())
+				|| getWorld()->isBoulderPresent2(getX() + 1, getY()))
+			{
+				m_boulder = true;
+				//setToDead();
+				return;
+			}
+
+			//distance--;
 			moveTo((getX() + 1), getY());
 		}
+
 		break;
+
 	case left:
 		if (getX() - 1 >= 0)
 		{
 			// if target location is occupied by a earth or boulder
 			// ... set squirt to dead so it can be remoed from the oil field at the end of the tick
 			// otherwise
-			distance--;
+			if (getWorld()->isEarthPresent(getX(), getY()))
+			{
+				setToDead();
+				return;
+			}
+			if (getWorld()->isThereOneByFourEarth(getX() - 1, getY())
+				|| getWorld()->isBoulderPresent2(getX() - 1, getY()))
+			{
+				m_boulder = true;
+				//setToDead();
+				return;
+			}
+			//distance--;
 			moveTo((getX() - 1), getY());
 		}
 		break;
 	case up:
-		if (getY() + 1 <= 64)
+		if (getY() + 1 <= 63)
 		{
 			// if target location is occupied by a earth or boulder
 			// ...
-			// otherwise
-			distance--;
+			if (getWorld()->isThereFourByOneEarth(getX(), getY() + 4)
+				|| getWorld()->isBoulderPresent(getX(), getY() + 4))
+			{
+				setToDead();
+				return;
+			}
+			//distance--;
 			moveTo((getX()), getY() + 1);
+		}
+		else
+		{
+			setToDead();
+			return;
 		}
 		break;
 	case down:
@@ -406,13 +792,35 @@ void Squirt::doSomething()
 			// if target location is occupied by a earth or boulder
 			// ...
 			// otherwise
-			distance--;
+
+			if (getWorld()->isThereFourByOneEarth(getX(), getY() - 1)
+				|| getWorld()->isBoulderPresent2(getX(), getY() - 1))
+			{
+				m_boulder = true;
+				//setToDead();
+				return;
+			}
+
+			//distance--;
 			moveTo((getX()), getY() - 1);
+		}
+		else
+		{
+			setToDead();
+			return;
 		}
 		break;
 	}
+	Actor* p = getWorld()->getNearbyProtester(this, 3);
+	if (p != nullptr)
+	{
+		setVisible(true);
+		p->annoy(2);
+		m_killProtester = true;
+	}
 	return;
 }
+
 // Squirts can't be annoyed, so leave the virtual void annoyed() as is.
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -423,9 +831,6 @@ Barrel::Barrel(StudentWorld* w, int x, int y)
 	setVisible(false);
 	visible = false;
 }
-bool Barrel::isDistributedObject() const { return true; }
-bool Barrel::isPickupable() const { return true; }
-bool Barrel::isAnObstacle() const { return false; }
 Barrel::~Barrel() {}
 void Barrel::doSomething()
 {
@@ -468,7 +873,16 @@ void GoldNugget::doSomething()
 		return;
 	double r = getRadius(getX(), getY(),
 		getWorld()->getTunnelman()->getX(), getWorld()->getTunnelman()->getY());
-	if (visibility == false && g_tunnelmanCanPickItUp == true)
+	Actor* a = getWorld()->getNearbyProtester(this, 4);
+	if (g_tunnelmanCanPickItUp == false && a != nullptr)
+	{
+		// lifetime of 100 game ticks.
+		setToDead();
+		a->bribe();
+		// tell protestor that it picked up the nugget (be bribed)
+
+	}
+	else if (visibility == false && g_tunnelmanCanPickItUp == true)
 	{
 		if (r <= 4)
 		{
@@ -487,24 +901,14 @@ void GoldNugget::doSomething()
 		// TO DO: tell tunnelman object that it just received a new nugget so it can update its inventory
 		return;
 	}
-	/*
-	else if (g_tunnelmanCanPickItUp == false) // && <= 3 units radius from a protestor))
-	{
-	// lifetime of 100 game ticks.
-	setToDead();
-	getWorld()->playSound(SOUND_PROTESTER_FOUND_GOLD);
-	getWorld()->getTunnelman()->nuggetReceived();
-	// tell protestor that it picked up the nugget (be bribed)
-	getWorld()->increaseScore(25);
-	}
-	*/
 	else if (g_100Ticks == true)
 	{
-		if (getWorld()->getTicks() >= 100)
+		if (getWorld()->getNuggetTicks() >= 100)
 		{
 			setVisible(false);
 			setToDead();
 		}
+		getWorld()->incrementNuggetTicks();
 		return;
 		// if tick lifetime has elapsed, then 
 		// setToDead(); // no removed by the studentworld class from the game at the end of the current tick
@@ -513,11 +917,10 @@ void GoldNugget::doSomething()
 void GoldNugget::setToDead() {
 	setVisible(false);
 	Actor::setToDead();
+	getWorld()->resetNuggetTicks();
 }
-bool GoldNugget::isDistributedObject() const { return true; }
-bool GoldNugget::isAnObstacle() const { return false; }
+GoldNugget::~GoldNugget() {}
 bool GoldNugget::pickupableByTunnelman() const { return g_tunnelmanCanPickItUp; }
-bool GoldNugget::isPickupable() const { return true; }
 
 /////////////////////////////////////////////////////////////
 // WaterPool implementation
@@ -527,9 +930,7 @@ WaterPool::WaterPool(StudentWorld* w, int x, int y)
 	//setVisible(true); // already by default
 	// only pickup-able by Tunnelman
 }
-bool WaterPool::isDistributedObject() const { return true; }
-bool WaterPool::isPickupable() const { return true; }
-bool WaterPool::isAnObstacle() const { return false; }
+WaterPool::~WaterPool() {}
 void WaterPool::doSomething()
 {
 	if (isAlive() == false)
@@ -544,14 +945,10 @@ void WaterPool::doSomething()
 		getWorld()->increaseScore(100);
 		return;
 	}
-	if (getWorld()->getTicks() >= max(100, 300 - (10 * ((int)getWorld()->getLevel()))))
+	if (getWorld()->getWaterPoolTicks() >= max(100, 300 - (10 * ((int)getWorld()->getLevel()))))
 	{
 		setToDead(); // removed by StudentWorld class
-		return;
-	}
-	else
-	{
-		getWorld()->resetTickCount();
+		getWorld()->resetWaterPoolTicks();
 		return;
 	}
 }
@@ -565,9 +962,7 @@ SonarKit::SonarKit(StudentWorld* w, int x, int y)
 	tempState = true; // always temporary
 					  // int numOfTicks = max(100, 300 - 10 * ((int)getWorld()->getLevel()));
 }
-bool SonarKit::isPickupable() const { return true; }
-bool SonarKit::isDistributedObject() const { return true; }
-bool SonarKit::isAnObstacle() const { return false; }
+SonarKit::~SonarKit() {}
 void SonarKit::doSomething()
 {
 	if (isAlive() == false)
@@ -578,8 +973,12 @@ void SonarKit::doSomething()
 		getWorld()->playSound(SOUND_GOT_GOODIE);
 		// notify the tunnelman
 		getWorld()->increaseScore(75);
-		getWorld()->getTunnelman()->increaseSonarCount();
+		getWorld()->getTunnelman()->increaseSonarCount(1);
+		getWorld()->resetSonarTicks();
 	}
-	if (getWorld()->getTicks() >= max(100, 300 - 10 * ((int)getWorld()->getLevel())))
+	if (getWorld()->getSonarTicks() >= max(100, 300 - 10 * ((int)getWorld()->getLevel())))
+	{
 		setToDead();
+		getWorld()->resetSonarTicks();
+	}
 }
