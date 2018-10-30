@@ -8,7 +8,7 @@ Project 2: Doubly-Linked List Implementation
 
 Project 3: Anagram Generator
 
-Project 4: Tunnelman (Pacman-like game)
+Project 4: Tunnelman (Clone of the classic 80's "Dig Dug" arcade game)
 
 Homework 1: Linked List Implementation
 
