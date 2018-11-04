@@ -3,7 +3,7 @@
 A video game based on the old arcade game 'Dig Dug', circa 1982
 
 # Description
-‣ The object of the game is to find all hidden Oil Barrel objects and proceed to the next level without getting caught by the AI, also known as the Protesters 
+‣ The objective of the game is to find all hidden Oil Barrel objects and proceed to the next level without getting caught by the AI, also known as the Protesters 
 
 ‣ The Regular Protesters (in dark blue) only follow the player when you, the Frackman (holding a pickaxe), are in their line of sight 
 
